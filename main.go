@@ -16,6 +16,10 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
+	"github.com/NimbleMarkets/ntcharts/barchart"
+	"github.com/NimbleMarkets/ntcharts/linechart/streamlinechart"
+	"github.com/NimbleMarkets/ntcharts/sparkline"
 )
 
 // Styles
@@ -805,32 +809,31 @@ func (m model) renderSiteDistributionChart() string {
 		}
 	}
 
-	// Render simple text bars instead of using ntcharts barchart (for now)
-	total := enabled + disabled
-	if total == 0 {
-		total = 1
-	}
-	maxBarWidth := 40
+	// Create barchart data
+	enabledStyle := lipgloss.NewStyle().Foreground(accentSuccess)
+	disabledStyle := lipgloss.NewStyle().Foreground(accentDanger)
 
-	renderBar := func(label string, value int, color lipgloss.Color) string {
-		proportion := float64(value) / float64(total)
-		barLen := int(math.Round(proportion * float64(maxBarWidth)))
-		if barLen < 0 {
-			barLen = 0
-		}
-		if barLen > maxBarWidth {
-			barLen = maxBarWidth
-		}
-		bar := strings.Repeat("█", barLen)
-		space := strings.Repeat(" ", maxBarWidth-barLen)
-		line := fmt.Sprintf("%-9s [%s%s] %d", label+":", bar, space, value)
-		return lipgloss.NewStyle().Foreground(color).Render(line)
+	data := []barchart.BarData{
+		{
+			Label: "Enabled",
+			Values: []barchart.BarValue{
+				{Name: "", Value: float64(enabled), Style: enabledStyle},
+			},
+		},
+		{
+			Label: "Disabled",
+			Values: []barchart.BarValue{
+				{Name: "", Value: float64(disabled), Style: disabledStyle},
+			},
+		},
 	}
 
-	enabledLine := renderBar("Enabled", enabled, accentSuccess)
-	disabledLine := renderBar("Disabled", disabled, accentDanger)
+	// Create and configure bar chart
+	bc := barchart.New(50, 8)
+	bc.PushAll(data)
+	bc.Draw()
 
-	chartContent := lipgloss.JoinVertical(lipgloss.Left, enabledLine, disabledLine)
+	chartContent := bc.View()
 	chartPanel := panelStyle.Width(50).Render(chartContent)
 	b.WriteString(chartPanel)
 
@@ -893,12 +896,17 @@ func (m model) renderLineChart(title string, data []float64, color lipgloss.Colo
 		fmt.Sprintf("Min: %.1f", minValue),
 	}
 
-	// Render sparkline chart
-	sparkWidth := 80
-	spark := renderSparkline(data, sparkWidth)
+	// Create streamline chart
+	slc := streamlinechart.New(80, 5)
+	for _, v := range data {
+		slc.Push(v)
+	}
+	slc.Draw()
+
+	// Render the chart with stats
 	chartView := lipgloss.JoinHorizontal(
 		lipgloss.Top,
-		panelStyle.Width(85).Render(spark),
+		panelStyle.Width(85).Render(slc.View()),
 		panelStyle.Width(20).Render(lipgloss.JoinVertical(lipgloss.Left, statsLines...)),
 	)
 
@@ -907,51 +915,12 @@ func (m model) renderLineChart(title string, data []float64, color lipgloss.Colo
 	return b.String()
 }
 
-// renderSparkline creates a simple sparkline using block characters scaled to the data range.
+// renderSparkline creates a sparkline using ntcharts
 func renderSparkline(data []float64, width int) string {
-	if len(data) == 0 || width <= 0 {
-		return ""
-	}
-
-	// Determine min and max
-	minVal := math.MaxFloat64
-	maxVal := -math.MaxFloat64
-	for _, v := range data {
-		if v < minVal {
-			minVal = v
-		}
-		if v > maxVal {
-			maxVal = v
-		}
-	}
-	// Avoid divide-by-zero
-	if maxVal-minVal < 1e-9 {
-		maxVal = minVal + 1
-	}
-
-	// Characters from low to high
-	levels := []rune{'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'}
-
-	// Sample data to match desired width
-	step := float64(len(data)) / float64(width)
-	var out []rune
-	for i := 0; i < width; i++ {
-		idx := int(math.Floor(float64(i) * step))
-		if idx >= len(data) {
-			idx = len(data) - 1
-		}
-		v := data[idx]
-		norm := (v - minVal) / (maxVal - minVal)
-		lvl := int(math.Round(norm * float64(len(levels)-1)))
-		if lvl < 0 {
-			lvl = 0
-		}
-		if lvl >= len(levels) {
-			lvl = len(levels) - 1
-		}
-		out = append(out, levels[lvl])
-	}
-	return string(out)
+	sl := sparkline.New(width, 1)
+	sl.PushAll(data)
+	sl.Draw()
+	return sl.View()
 }
 
 func (m model) renderHelp() string {
