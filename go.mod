@@ -1,4 +1,4 @@
-module github.com/charmbracelet/bubbletea-app-template
+module github.com/aitmiloud/ngxtui
 
 go 1.24.0
 

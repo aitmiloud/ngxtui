@@ -25,7 +25,9 @@ Or build from source:
 ```bash
 git clone https://github.com/aitmiloud/ngxtui.git
 cd ngxtui
-go build
+make build
+# or
+go build -o bin/ngxtui ./cmd/ngxtui
 ```
 
 ## Usage
@@ -82,13 +84,37 @@ sudo ngxtui
 
 ## Development
 
-To contribute to the project:
+This project follows a modular architecture with clear separation of concerns. See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed documentation.
+
+### Project Structure
+```
+cmd/ngxtui/          # Application entry point
+internal/
+  ├── app/           # Bubble Tea application logic
+  ├── model/         # Data models and types
+  ├── nginx/         # NGINX service layer
+  ├── styles/        # UI styling
+  └── ui/            # View rendering
+```
+
+### Building
+```bash
+make build          # Build the application
+make run            # Build and run (requires sudo)
+make test           # Run tests
+make lint           # Run linter
+make fmt            # Format code
+```
+
+### Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+3. Follow the architecture patterns (see `ARCHITECTURE.md`)
+4. Add tests for new functionality
+5. Commit your changes (`git commit -m 'Add some amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
 ## Dependencies
 
