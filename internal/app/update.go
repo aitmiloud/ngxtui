@@ -6,11 +6,11 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/aitmiloud/ngxtui/internal/model"
 	"github.com/aitmiloud/ngxtui/internal/nginx"
+	"github.com/aitmiloud/ngxtui/internal/ui"
 )
 
 // Update handles all state updates
@@ -90,10 +90,6 @@ func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 		cmds = append(cmds, cmd)
 	}
 
-	// Update table
-	m.Table, cmd = m.Table.Update(msg)
-	cmds = append(cmds, cmd)
-
 	return m, tea.Batch(cmds...)
 }
 
@@ -101,9 +97,17 @@ func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 func handleSitesTab(m model.Model, msg tea.KeyMsg) (model.Model, tea.Cmd) {
 	if key.Matches(msg, model.Keys.Enter) {
 		if len(m.Sites) > 0 {
-			m.Selected = m.Table.Cursor()
+			// For stickers table, we track selection manually
 			m.MenuMode = true
 			m.Cursor = 0
+		}
+	} else if key.Matches(msg, model.Keys.Up) {
+		if m.Selected > 0 {
+			m.Selected--
+		}
+	} else if key.Matches(msg, model.Keys.Down) {
+		if m.Selected < len(m.Sites)-1 {
+			m.Selected++
 		}
 	}
 	return m, nil
@@ -147,26 +151,8 @@ func refreshSites(m *model.Model) tea.Cmd {
 		// Update model sites
 		m.Sites = sites
 
-		// Update table rows
-		rows := []table.Row{}
-		for _, site := range sites {
-			status := "Disabled"
-			if site.Enabled {
-				status = "Enabled"
-			}
-			ssl := "No"
-			if site.SSL {
-				ssl = "Yes"
-			}
-			rows = append(rows, table.Row{
-				site.Name,
-				status,
-				site.Port,
-				ssl,
-				site.Uptime,
-			})
-		}
-		m.Table.SetRows(rows)
+		// Recreate table with new data
+		m.Table = ui.CreateSitesTable(sites, 100, 15)
 
 		return model.StatusMsg{
 			Message: "Sites refreshed successfully",
@@ -230,26 +216,8 @@ func executeAction(m *model.Model) tea.Cmd {
 		sites, _ := nginxService.ListSites()
 		m.Sites = sites
 
-		// Update table
-		rows := []table.Row{}
-		for _, s := range sites {
-			status := "Disabled"
-			if s.Enabled {
-				status = "Enabled"
-			}
-			ssl := "No"
-			if s.SSL {
-				ssl = "Yes"
-			}
-			rows = append(rows, table.Row{
-				s.Name,
-				status,
-				s.Port,
-				ssl,
-				s.Uptime,
-			})
-		}
-		m.Table.SetRows(rows)
+		// Recreate table with new data
+		m.Table = ui.CreateSitesTable(sites, 100, 15)
 
 		m.MenuMode = false
 		m.Selected = -1

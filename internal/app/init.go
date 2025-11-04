@@ -6,7 +6,6 @@ import (
 
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -14,6 +13,7 @@ import (
 	"github.com/aitmiloud/ngxtui/internal/model"
 	"github.com/aitmiloud/ngxtui/internal/nginx"
 	"github.com/aitmiloud/ngxtui/internal/styles"
+	"github.com/aitmiloud/ngxtui/internal/ui"
 )
 
 // InitialModel creates the initial model state
@@ -40,53 +40,8 @@ func InitialModel() model.Model {
 		sites = []model.Site{}
 	}
 
-	// Create table
-	columns := []table.Column{
-		{Title: "Site Name", Width: 30},
-		{Title: "Status", Width: 15},
-		{Title: "Port", Width: 10},
-		{Title: "SSL", Width: 10},
-		{Title: "Uptime", Width: 15},
-	}
-
-	rows := []table.Row{}
-	for _, site := range sites {
-		status := "Disabled"
-		if site.Enabled {
-			status = "Enabled"
-		}
-		ssl := "No"
-		if site.SSL {
-			ssl = "Yes"
-		}
-		rows = append(rows, table.Row{
-			site.Name,
-			status,
-			site.Port,
-			ssl,
-			site.Uptime,
-		})
-	}
-
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(10),
-	)
-
-	tableStyle := table.DefaultStyles()
-	tableStyle.Header = tableStyle.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(styles.BorderSubtle).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(styles.AccentPrimary)
-	tableStyle.Selected = tableStyle.Selected.
-		Foreground(styles.TextPrimary).
-		Background(styles.AccentSecondary).
-		Bold(true)
-	t.SetStyles(tableStyle)
+	// Create stickers table
+	t := ui.CreateSitesTable(sites, 100, 15)
 
 	// Initialize metric history with random data
 	cpuHistory := make([]float64, 50)

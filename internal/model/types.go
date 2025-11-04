@@ -3,10 +3,10 @@ package model
 import (
 	"time"
 
+	"github.com/76creates/stickers/table"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/progress"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 )
 
@@ -44,7 +44,7 @@ type ClearStatusMsg struct{}
 // Model represents the application state
 type Model struct {
 	Sites          []Site
-	Table          table.Model
+	Table          *table.Table
 	Cursor         int
 	Selected       int
 	MenuMode       bool

@@ -10,22 +10,25 @@ import (
 )
 
 func main() {
-	// Check if running with appropriate permissions
+	// Check if running as root
 	if os.Geteuid() != 0 {
-		fmt.Println("⚠️  Warning: This application requires root privileges to manage NGINX.")
-		fmt.Println("Please run with sudo: sudo ngxtui")
+		fmt.Println("This program must be run as root (use sudo)")
 		os.Exit(1)
 	}
 
-	// Create app instance
-	a := app.New()
+	// Initialize the model
+	initialModel := app.InitialModel()
 
-	// Create Bubble Tea program
-	p := tea.NewProgram(a, tea.WithAltScreen())
+	// Create the program with alt screen and mouse support
+	p := tea.NewProgram(
+		&app.App{Model: initialModel},
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
 
 	// Run the program
 	if _, err := p.Run(); err != nil {
-		fmt.Printf("Error running program: %v\n", err)
+		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
 }
