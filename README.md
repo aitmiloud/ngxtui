@@ -130,11 +130,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Charm](https://charm.sh/) for their amazing terminal UI libraries
 - NGINX community for inspiration and documentation
-
-## Author
-
-Mohamed AIT MILOUD - [@aitmiloud](https://github.com/aitmiloud)
-
----
-
-Made with ❤️ using [Go](https://golang.org) and [Charm](https://charm.sh/)
