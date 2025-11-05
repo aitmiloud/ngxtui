@@ -40,10 +40,10 @@ func View(m model.Model) string {
 	header := renderer.RenderCreativeHeader(width)
 
 	// Tabs (fixed height: 2 lines)
-	tabs := renderer.RenderTabs(&m)
+	tabs := renderer.RenderTabs(&m, width)
 
 	// Footer/Help (fixed height: 2 lines)
-	help := renderer.RenderHelp(&m)
+	help := renderer.RenderHelp(&m, width)
 
 	// Status bar (1 line if present)
 	statusBar := renderer.RenderStatusBar(&m)

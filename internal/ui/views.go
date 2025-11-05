@@ -39,7 +39,7 @@ func (r *Renderer) RenderCreativeHeader(width int) string {
 }
 
 // RenderTabs renders the tab bar with icons
-func (r *Renderer) RenderTabs(m *model.Model) string {
+func (r *Renderer) RenderTabs(m *model.Model, width int) string {
 	tabs := []struct {
 		icon string
 		name string
@@ -72,8 +72,8 @@ func (r *Renderer) RenderTabs(m *model.Model) string {
 
 	tabBar := strings.Join(renderedTabs, "")
 
-	// Add a divider below tabs
-	divider := "\033[90m" + strings.Repeat("─", 80) + "\033[0m"
+	// Add a divider below tabs that spans the full terminal width
+	divider := "\033[90m" + strings.Repeat("─", width) + "\033[0m"
 
 	return tabBar + "\n" + divider
 }
@@ -469,42 +469,109 @@ func (r *Renderer) RenderMetricsView(m *model.Model, width, height int) string {
 		}
 	}
 
-	// Calculate chart dimensions to use full width
-	chartWidth := (width / 2) - 6
-	chartHeight := (height / 2) - 4
+	// Add section header
+	headerStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(styles.AccentPrimary).
+		MarginBottom(1).
+		MarginTop(1)
+	sectionHeader := headerStyle.Render("📈 Real-Time System Metrics")
+
+	// Calculate chart dimensions to use full width with better spacing
+	chartWidth := (width / 2) - 8
+	chartHeight := (height / 2) - 5
 
 	if chartWidth < 40 {
 		chartWidth = 40
 	}
-	if chartHeight < 8 {
-		chartHeight = 8
+	if chartHeight < 10 {
+		chartHeight = 10
 	}
 
-	// Render charts with real data
-	cpuChart := r.RenderLineChart("CPU Usage (%)", m.CPUHistory, styles.AccentPrimary, chartWidth, chartHeight)
-	memChart := r.RenderLineChart("Memory Usage (%)", m.MemHistory, styles.AccentSecondary, chartWidth, chartHeight)
-	netChart := r.RenderLineChart("Network (MB/s)", m.NetHistory, styles.AccentSuccess, chartWidth, chartHeight)
-	reqChart := r.RenderLineChart("Request Rate (req/s)", m.RequestHistory, styles.AccentWarning, chartWidth, chartHeight)
+	// Render charts with real data and color-coded themes
+	cpuChart := r.RenderLineChart("CPU Usage", m.CPUHistory, styles.AccentPrimary, chartWidth, chartHeight)
+	memChart := r.RenderLineChart("Memory Usage", m.MemHistory, styles.AccentSecondary, chartWidth, chartHeight)
+	netChart := r.RenderLineChart("Network Traffic", m.NetHistory, styles.AccentSuccess, chartWidth, chartHeight)
+	reqChart := r.RenderLineChart("Request Rate", m.RequestHistory, styles.AccentWarning, chartWidth, chartHeight)
 
-	row1 := lipgloss.JoinHorizontal(lipgloss.Top, cpuChart, "  ", memChart)
-	row2 := lipgloss.JoinHorizontal(lipgloss.Top, netChart, "  ", reqChart)
+	// Create rows with proper spacing
+	row1 := lipgloss.JoinHorizontal(lipgloss.Top, cpuChart, "    ", memChart)
+	row2 := lipgloss.JoinHorizontal(lipgloss.Top, netChart, "    ", reqChart)
 
-	return lipgloss.JoinVertical(lipgloss.Left, row1, "", row2)
+	return lipgloss.JoinVertical(lipgloss.Left, sectionHeader, "", row1, "", row2)
 }
 
 // RenderLineChart renders a line chart with specified dimensions
 func (r *Renderer) RenderLineChart(title string, data []float64, color lipgloss.Color, width, height int) string {
-	titleText := styles.PanelTitle.Render(title)
+	// Add icon based on title
+	var icon string
+	switch {
+	case strings.Contains(title, "CPU"):
+		icon = "⚡"
+	case strings.Contains(title, "Memory"):
+		icon = "💾"
+	case strings.Contains(title, "Network"):
+		icon = "🌐"
+	case strings.Contains(title, "Request"):
+		icon = "📊"
+	default:
+		icon = "📈"
+	}
+
+	// Enhanced title with icon and color
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(color).
+		MarginBottom(1)
+	titleText := titleStyle.Render(fmt.Sprintf("%s  %s", icon, title))
 
 	if len(data) == 0 {
-		return styles.Panel.Width(width).Render(
+		emptyPanel := lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(color).
+			Padding(1, 2).
+			Width(width)
+		return emptyPanel.Render(
 			lipgloss.JoinVertical(lipgloss.Left, titleText, styles.MutedText.Render("No data available")),
 		)
 	}
 
+	// Calculate statistics
+	var min, max, sum float64
+	min = data[0]
+	max = data[0]
+	for _, val := range data {
+		sum += val
+		if val < min {
+			min = val
+		}
+		if val > max {
+			max = val
+		}
+	}
+	avg := sum / float64(len(data))
+
+	// Calculate trend (comparing last value to average)
+	currentVal := data[len(data)-1]
+	var trendIcon, trendText string
+	var trendColor lipgloss.Color
+	if currentVal > avg {
+		trendIcon = "↗"
+		trendText = "Above avg"
+		trendColor = styles.AccentSuccess
+	} else if currentVal < avg {
+		trendIcon = "↘"
+		trendText = "Below avg"
+		trendColor = styles.AccentInfo
+	} else {
+		trendIcon = "→"
+		trendText = "At avg"
+		trendColor = styles.TextMuted
+	}
+
 	// Adjust dimensions for chart content (account for padding and borders)
 	chartWidth := width - 6
-	chartHeight := height - 6
+	chartHeight := height - 8 // More space for stats
 
 	if chartWidth < 20 {
 		chartWidth = 20
@@ -519,21 +586,53 @@ func (r *Renderer) RenderLineChart(title string, data []float64, color lipgloss.
 	}
 	slc.Draw()
 
-	// Get current value
-	currentVal := data[len(data)-1]
-	currentText := styles.InfoText.Render(fmt.Sprintf("Current: %.1f%%", currentVal))
+	// Format current value with proper unit
+	unit := "%"
+	if strings.Contains(title, "Network") {
+		unit = " MB/s"
+	} else if strings.Contains(title, "Request") {
+		unit = " req/s"
+	}
 
-	// Create sparkline for mini view
-	sparklineText := r.RenderSparkline(data, chartWidth)
+	// Current value with large, bold styling
+	currentStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(color).
+		MarginTop(1)
+	currentText := currentStyle.Render(fmt.Sprintf("Current: %.1f%s", currentVal, unit))
+
+	// Trend indicator
+	trendStyle := lipgloss.NewStyle().
+		Foreground(trendColor).
+		MarginLeft(2)
+	trendDisplay := trendStyle.Render(fmt.Sprintf("%s %s", trendIcon, trendText))
+
+	// Statistics row
+	statsStyle := lipgloss.NewStyle().
+		Foreground(styles.TextSecondary).
+		MarginTop(1)
+	statsText := statsStyle.Render(fmt.Sprintf("Min: %.1f%s  Max: %.1f%s  Avg: %.1f%s",
+		min, unit, max, unit, avg, unit))
+
+	// Combine current value and trend on same line
+	currentRow := lipgloss.JoinHorizontal(lipgloss.Left, currentText, trendDisplay)
 
 	content := lipgloss.JoinVertical(lipgloss.Left,
 		titleText,
 		slc.View(),
-		sparklineText,
-		currentText,
+		currentRow,
+		statsText,
 	)
 
-	return styles.Panel.Width(width).Render(content)
+	// Enhanced panel with color-coded border
+	enhancedPanel := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(color).
+		Padding(1, 2).
+		Width(width).
+		MarginBottom(1)
+
+	return enhancedPanel.Render(content)
 }
 
 // RenderSparkline creates a sparkline using ntcharts
@@ -546,7 +645,7 @@ func (r *Renderer) RenderSparkline(data []float64, width int) string {
 }
 
 // RenderHelp renders the help text with modern styling
-func (r *Renderer) RenderHelp(m *model.Model) string {
+func (r *Renderer) RenderHelp(m *model.Model, width int) string {
 	// Group keys by category
 	navigation := lipgloss.JoinHorizontal(
 		lipgloss.Left,
@@ -585,7 +684,8 @@ func (r *Renderer) RenderHelp(m *model.Model) string {
 		actions,
 	)
 
-	return styles.Footer.Render(helpText)
+	// Apply full width to footer to make the border line span the entire terminal width
+	return styles.Footer.Width(width).Render(helpText)
 }
 
 // RenderStatusBar renders the status bar
