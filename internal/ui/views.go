@@ -244,50 +244,39 @@ func (r *Renderer) RenderStatsView(m *model.Model, width int) string {
 
 // RenderStunningMetricCard renders a beautifully designed metric card with ANSI art
 func (r *Renderer) RenderStunningMetricCard(icon, label, value, subtext string, accentColor lipgloss.Color) string {
-	// Convert color to ANSI code
-	colorCode := "36" // default cyan
-	switch accentColor {
-	case styles.AccentSuccess:
-		colorCode = "32" // green
-	case styles.AccentWarning:
-		colorCode = "33" // yellow
-	case styles.AccentSecondary:
-		colorCode = "35" // magenta
-	}
+	// Simpler approach: use lipgloss to handle the layout properly
+	// Create the card content
+	titleLine := lipgloss.NewStyle().
+		Foreground(accentColor).
+		Bold(true).
+		Render(icon + "  " + label)
 
-	// Card content width (17 chars total including spaces)
-	contentWidth := 17
+	valueLine := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("255")).
+		Bold(true).
+		PaddingLeft(3).
+		Render(value)
 
-	// Build each line with exact spacing
-	// Line 1: icon + label (padded to fill width)
-	line1Content := fmt.Sprintf("%s  %s", icon, label)
-	line1Spaces := contentWidth - len(line1Content) - 1
-	if line1Spaces < 0 {
-		line1Spaces = 0
-		line1Content = line1Content[:contentWidth-1]
-	}
+	subtextLine := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		PaddingLeft(3).
+		Render(subtext)
 
-	// Line 3: value (centered-ish with 3 space indent)
-	line3Spaces := contentWidth - len(value) - 3 - 1
-	if line3Spaces < 0 {
-		line3Spaces = 0
-	}
+	// Build the card with proper box drawing
+	cardStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Width(19).
+		Padding(0, 1)
 
-	// Line 4: subtext (centered-ish with 3 space indent)
-	line4Spaces := contentWidth - len(subtext) - 3 - 1
-	if line4Spaces < 0 {
-		line4Spaces = 0
-	}
+	content := lipgloss.JoinVertical(lipgloss.Left,
+		titleLine,
+		"",
+		valueLine,
+		subtextLine,
+	)
 
-	// Build card with exact spacing
-	card := "\033[90m┌─────────────────┐\033[0m\n"
-	card += fmt.Sprintf("\033[90m│\033[0m \033[1;%sm%s\033[0m%s\033[90m│\033[0m\n", colorCode, line1Content, strings.Repeat(" ", line1Spaces))
-	card += "\033[90m│\033[0m                 \033[90m│\033[0m\n"
-	card += fmt.Sprintf("\033[90m│\033[0m   \033[1;97m%s\033[0m%s\033[90m│\033[0m\n", value, strings.Repeat(" ", line3Spaces))
-	card += fmt.Sprintf("\033[90m│\033[0m   \033[2;37m%s\033[0m%s\033[90m│\033[0m\n", subtext, strings.Repeat(" ", line4Spaces))
-	card += "\033[90m└─────────────────┘\033[0m"
-
-	return card
+	return cardStyle.Render(content)
 }
 
 // RenderDistributionBar renders a visual distribution bar
