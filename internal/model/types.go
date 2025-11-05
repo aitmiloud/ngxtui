@@ -65,6 +65,9 @@ type Model struct {
 	RequestHistory []float64
 	Progress       progress.Model
 	LastUpdate     time.Time
+	MetricsHistory interface{} // Will store *nginx.MetricsHistory
+	LastNetworkIn  float64     // Track last network in for rate calculation
+	LastNetworkOut float64     // Track last network out for rate calculation
 }
 
 // KeyMap defines the keybindings for the application

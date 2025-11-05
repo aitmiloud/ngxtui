@@ -3,11 +3,13 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/NimbleMarkets/ntcharts/barchart"
 	"github.com/NimbleMarkets/ntcharts/linechart/streamlinechart"
 	"github.com/NimbleMarkets/ntcharts/sparkline"
 	"github.com/aitmiloud/ngxtui/internal/model"
+	"github.com/aitmiloud/ngxtui/internal/nginx"
 	"github.com/aitmiloud/ngxtui/internal/styles"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -129,100 +131,258 @@ func (r *Renderer) RenderStatusBadge(enabled bool) string {
 	return styles.DisabledBadge.Render("○ INACTIVE")
 }
 
-// RenderLogsView renders the logs view with enhanced styling
+// RenderLogsView renders the logs view with REAL NGINX access logs
 func (r *Renderer) RenderLogsView(m *model.Model) string {
-	title := styles.PanelTitle.Render("📋 Access Logs")
+	title := fmt.Sprintf("\033[1;36m📋 REAL-TIME ACCESS LOGS\033[0m\n")
 
 	// Legend for status codes
-	legend := lipgloss.JoinHorizontal(
-		lipgloss.Left,
-		styles.StatusSuccess.Render("● 2xx Success"),
-		"  ",
-		styles.StatusInfo.Render("● 3xx Redirect"),
-		"  ",
-		styles.StatusWarning.Render("● 4xx Client Error"),
-		"  ",
-		styles.StatusError.Render("● 5xx Server Error"),
-	)
+	legend := fmt.Sprintf("  \033[32m●\033[0m 2xx Success   \033[36m●\033[0m 3xx Redirect   \033[33m●\033[0m 4xx Client Error   \033[31m●\033[0m 5xx Server Error\n")
 
-	// Helper styles for log formatting
-	secondaryStyle := lipgloss.NewStyle().Foreground(styles.TextSecondary)
-	primaryStyle := lipgloss.NewStyle().Foreground(styles.TextPrimary)
-	mutedStyle := lipgloss.NewStyle().Foreground(styles.TextMuted)
+	divider := "\033[90m" + strings.Repeat("─", 100) + "\033[0m\n"
 
-	// Simulated log entries with enhanced color coding
-	logs := []string{
-		styles.StatusSuccess.Render("● ") + secondaryStyle.Render("192.168.1.100 - [04/Nov/2024:15:42:07] ") + primaryStyle.Render("GET /api/users") + styles.StatusSuccess.Render(" 200") + mutedStyle.Render(" 1.2KB"),
-		styles.StatusInfo.Render("● ") + secondaryStyle.Render("192.168.1.101 - [04/Nov/2024:15:42:08] ") + primaryStyle.Render("POST /api/login") + styles.StatusInfo.Render(" 201") + mutedStyle.Render(" 567B"),
-		styles.StatusWarning.Render("● ") + secondaryStyle.Render("192.168.1.102 - [04/Nov/2024:15:42:09] ") + primaryStyle.Render("GET /missing") + styles.StatusWarning.Render(" 404") + mutedStyle.Render(" 89B"),
-		styles.StatusSuccess.Render("● ") + secondaryStyle.Render("192.168.1.103 - [04/Nov/2024:15:42:10] ") + primaryStyle.Render("GET /api/products") + styles.StatusSuccess.Render(" 200") + mutedStyle.Render(" 2.3KB"),
-		styles.StatusError.Render("● ") + secondaryStyle.Render("192.168.1.104 - [04/Nov/2024:15:42:11] ") + primaryStyle.Render("POST /api/order") + styles.StatusError.Render(" 500") + mutedStyle.Render(" 123B"),
-		styles.StatusSuccess.Render("● ") + secondaryStyle.Render("192.168.1.105 - [04/Nov/2024:15:42:12] ") + primaryStyle.Render("GET /health") + styles.StatusSuccess.Render(" 200") + mutedStyle.Render(" 45B"),
-		styles.StatusInfo.Render("● ") + secondaryStyle.Render("192.168.1.106 - [04/Nov/2024:15:42:13] ") + primaryStyle.Render("PUT /api/user/123") + styles.StatusInfo.Render(" 204") + mutedStyle.Render(" 0B"),
-		styles.StatusWarning.Render("● ") + secondaryStyle.Render("192.168.1.107 - [04/Nov/2024:15:42:14] ") + primaryStyle.Render("GET /old-page") + styles.StatusWarning.Render(" 404") + mutedStyle.Render(" 234B"),
-		styles.StatusSuccess.Render("● ") + secondaryStyle.Render("192.168.1.108 - [04/Nov/2024:15:42:15] ") + primaryStyle.Render("GET /api/status") + styles.StatusSuccess.Render(" 200") + mutedStyle.Render(" 512B"),
-		styles.StatusSuccess.Render("● ") + secondaryStyle.Render("192.168.1.109 - [04/Nov/2024:15:42:16] ") + primaryStyle.Render("GET /assets/logo.png") + styles.StatusSuccess.Render(" 200") + mutedStyle.Render(" 15KB"),
+	// Get real access logs from NGINX
+	nginxService := nginx.New()
+	logEntries, err := nginxService.GetAccessLogs(20) // Get last 20 entries
+
+	var logs []string
+	if err != nil {
+		logs = []string{fmt.Sprintf("\033[33m⚠ Unable to read access logs: %v\033[0m", err)}
+	} else if len(logEntries) == 0 {
+		logs = []string{"\033[90mNo access logs available\033[0m"}
+	} else {
+		// Format each log entry
+		for _, entry := range logEntries {
+			logs = append(logs, nginx.FormatLogEntry(entry))
+		}
 	}
 
 	content := strings.Join(logs, "\n")
-	m.Viewport.SetContent(content)
 
-	divider := styles.Divider.Render(strings.Repeat("─", 80))
-
-	return styles.Panel.Render(
-		lipgloss.JoinVertical(lipgloss.Left, title, legend, divider, m.Viewport.View()),
-	)
+	return title + legend + divider + content
 }
 
-// RenderStatsView renders the statistics view with enhanced layout
+// RenderStatsView renders the statistics view with stunning modern design
 func (r *Renderer) RenderStatsView(m *model.Model, width int) string {
 	totalSites := len(m.Sites)
 	enabledSites := 0
+	disabledSites := 0
+
 	for _, site := range m.Sites {
 		if site.Enabled {
 			enabledSites++
+		} else {
+			disabledSites++
 		}
 	}
 
 	// Calculate percentage
-	percentage := "0%"
+	percentage := 0.0
 	if totalSites > 0 {
-		percentage = fmt.Sprintf("%.1f%%", float64(enabledSites)/float64(totalSites)*100)
+		percentage = float64(enabledSites) / float64(totalSites) * 100
 	}
 
-	// Metric cards with icons
-	stats := []string{
-		r.RenderMetricCard("🌐 Total Sites", fmt.Sprintf("%d", totalSites), "All configured"),
-		r.RenderMetricCard("✓ Active Sites", fmt.Sprintf("%d", enabledSites), percentage+" enabled"),
-		r.RenderMetricCard("⚡ Request Rate", "1.2k/s", "Avg per second"),
-		r.RenderMetricCard("⏱️  Uptime", "99.9%", "Last 30 days"),
-	}
+	// Header with gradient-style title using ANSI codes
+	header := fmt.Sprintf("\033[1;36m╔═══════════════════════════════════════════════════════════════════════════════╗\033[0m\n")
+	header += fmt.Sprintf("\033[1;36m║\033[0m  \033[1;97m📊 NGINX STATISTICS DASHBOARD\033[0m                                              \033[1;36m║\033[0m\n")
+	header += fmt.Sprintf("\033[1;36m╚═══════════════════════════════════════════════════════════════════════════════╝\033[0m\n")
 
-	statsRow := lipgloss.JoinHorizontal(lipgloss.Top, stats...)
+	// Stunning metric cards in a row with box drawing
+	card1 := r.RenderStunningMetricCard("🌐", "TOTAL SITES", fmt.Sprintf("%d", totalSites), "Configured", styles.AccentPrimary)
+	card2 := r.RenderStunningMetricCard("✓", "ACTIVE", fmt.Sprintf("%d", enabledSites), fmt.Sprintf("%.0f%% Online", percentage), styles.AccentSuccess)
+	card3 := r.RenderStunningMetricCard("○", "INACTIVE", fmt.Sprintf("%d", disabledSites), "Offline", styles.AccentWarning)
+	card4 := r.RenderStunningMetricCard("⚡", "UPTIME", "99.9%", "Last 30d", styles.AccentSecondary)
 
-	// Add section title
-	chartTitle := styles.PanelTitle.Render("📊 Site Distribution")
+	cardsRow := lipgloss.JoinHorizontal(lipgloss.Top, card1, "  ", card2, "  ", card3, "  ", card4)
 
-	chart := r.RenderSiteDistributionChart(m)
+	// Visual distribution bar
+	distBar := r.RenderDistributionBar(enabledSites, disabledSites, totalSites, width-10)
 
-	return lipgloss.JoinVertical(lipgloss.Left, statsRow, "", chartTitle, chart)
+	// Performance metrics section
+	perfSection := r.RenderPerformanceMetrics()
+
+	// System health indicators
+	healthSection := r.RenderHealthIndicators()
+
+	return lipgloss.JoinVertical(lipgloss.Left,
+		header,
+		"",
+		cardsRow,
+		"",
+		"",
+		distBar,
+		"",
+		"",
+		perfSection,
+		"",
+		healthSection,
+	)
 }
 
-// RenderMetricCard renders a metric card with modern styling
-func (r *Renderer) RenderMetricCard(label, value, subtext string) string {
-	title := styles.CardTitle.Render(label)
+// RenderStunningMetricCard renders a beautifully designed metric card with ANSI art
+func (r *Renderer) RenderStunningMetricCard(icon, label, value, subtext string, accentColor lipgloss.Color) string {
+	// Convert color to ANSI code
+	colorCode := "36" // default cyan
+	switch accentColor {
+	case styles.AccentSuccess:
+		colorCode = "32" // green
+	case styles.AccentWarning:
+		colorCode = "33" // yellow
+	case styles.AccentSecondary:
+		colorCode = "35" // magenta
+	}
 
-	// Large, centered value
-	val := styles.CardValue.
-		Width(20).
-		Render(value)
+	// Card content width (17 chars total including spaces)
+	contentWidth := 17
 
-	sub := styles.CardSubtext.
-		Width(20).
-		Render(subtext)
+	// Build each line with exact spacing
+	// Line 1: icon + label (padded to fill width)
+	line1Content := fmt.Sprintf("%s  %s", icon, label)
+	line1Spaces := contentWidth - len(line1Content) - 1
+	if line1Spaces < 0 {
+		line1Spaces = 0
+		line1Content = line1Content[:contentWidth-1]
+	}
 
-	content := lipgloss.JoinVertical(lipgloss.Center, title, "", val, sub)
-	return styles.Card.Width(24).Height(6).Render(content)
+	// Line 3: value (centered-ish with 3 space indent)
+	line3Spaces := contentWidth - len(value) - 3 - 1
+	if line3Spaces < 0 {
+		line3Spaces = 0
+	}
+
+	// Line 4: subtext (centered-ish with 3 space indent)
+	line4Spaces := contentWidth - len(subtext) - 3 - 1
+	if line4Spaces < 0 {
+		line4Spaces = 0
+	}
+
+	// Build card with exact spacing
+	card := "\033[90m┌─────────────────┐\033[0m\n"
+	card += fmt.Sprintf("\033[90m│\033[0m \033[1;%sm%s\033[0m%s\033[90m│\033[0m\n", colorCode, line1Content, strings.Repeat(" ", line1Spaces))
+	card += "\033[90m│\033[0m                 \033[90m│\033[0m\n"
+	card += fmt.Sprintf("\033[90m│\033[0m   \033[1;97m%s\033[0m%s\033[90m│\033[0m\n", value, strings.Repeat(" ", line3Spaces))
+	card += fmt.Sprintf("\033[90m│\033[0m   \033[2;37m%s\033[0m%s\033[90m│\033[0m\n", subtext, strings.Repeat(" ", line4Spaces))
+	card += "\033[90m└─────────────────┘\033[0m"
+
+	return card
+}
+
+// RenderDistributionBar renders a visual distribution bar
+func (r *Renderer) RenderDistributionBar(enabled, disabled, total int, width int) string {
+	if total == 0 {
+		return ""
+	}
+
+	title := fmt.Sprintf("\033[1;36m▸ SITE DISTRIBUTION\033[0m\n")
+
+	// Calculate bar widths
+	barWidth := width - 30
+	if barWidth < 20 {
+		barWidth = 20
+	}
+
+	enabledWidth := int(float64(enabled) / float64(total) * float64(barWidth))
+	disabledWidth := barWidth - enabledWidth
+
+	// Build the bar
+	bar := "  ["
+	bar += fmt.Sprintf("\033[42m%s\033[0m", strings.Repeat(" ", enabledWidth))
+	bar += fmt.Sprintf("\033[43m%s\033[0m", strings.Repeat(" ", disabledWidth))
+	bar += "]"
+
+	legend := fmt.Sprintf("  \033[32m■\033[0m Active: %d    \033[33m■\033[0m Inactive: %d", enabled, disabled)
+
+	return title + bar + "\n" + legend
+}
+
+// RenderPerformanceMetrics renders REAL performance indicators
+func (r *Renderer) RenderPerformanceMetrics() string {
+	title := fmt.Sprintf("\033[1;36m▸ REAL-TIME PERFORMANCE\033[0m\n")
+
+	// Get real stats from NGINX
+	nginxService := nginx.New()
+	stats, err := nginxService.GetStats()
+
+	var metrics []string
+	if err != nil {
+		metrics = []string{fmt.Sprintf("  \033[33m⚠ Unable to fetch stats: %v\033[0m", err)}
+	} else {
+		// Get log stats for success rate
+		logStats, _ := nginxService.GetLogStats()
+		successRate := 0.0
+		if logStats != nil && logStats.TotalRequests > 0 {
+			successCount := logStats.StatusCounts["2xx"] + logStats.StatusCounts["3xx"]
+			successRate = float64(successCount) / float64(logStats.TotalRequests) * 100
+		}
+
+		metrics = []string{
+			fmt.Sprintf("  \033[32m●\033[0m Request Rate    : \033[1;97m%.1f\033[0m req/s", stats.RequestRate),
+			fmt.Sprintf("  \033[32m●\033[0m Active Conn.    : \033[1;97m%d\033[0m connections", stats.ActiveConnections),
+			fmt.Sprintf("  \033[32m●\033[0m Worker Processes: \033[1;97m%d\033[0m workers", stats.WorkerProcesses),
+			fmt.Sprintf("  \033[32m●\033[0m Success Rate    : \033[1;97m%.1f%%\033[0m", successRate),
+			fmt.Sprintf("  \033[32m●\033[0m Uptime          : \033[1;97m%s\033[0m", formatDuration(stats.Uptime)),
+		}
+	}
+
+	return title + strings.Join(metrics, "\n")
+}
+
+// formatDuration formats a duration into human-readable format
+func formatDuration(d time.Duration) string {
+	days := int(d.Hours() / 24)
+	hours := int(d.Hours()) % 24
+	minutes := int(d.Minutes()) % 60
+
+	if days > 0 {
+		return fmt.Sprintf("%dd %dh %dm", days, hours, minutes)
+	} else if hours > 0 {
+		return fmt.Sprintf("%dh %dm", hours, minutes)
+	}
+	return fmt.Sprintf("%dm", minutes)
+}
+
+// RenderHealthIndicators renders REAL system health status
+func (r *Renderer) RenderHealthIndicators() string {
+	title := fmt.Sprintf("\033[1;36m▸ SYSTEM HEALTH\033[0m\n")
+
+	nginxService := nginx.New()
+
+	// Check NGINX service
+	nginxStatus := "\033[32m✓\033[0m"
+	nginxMsg := "\033[1;32mRunning\033[0m"
+	if err := nginxService.TestConfig(); err != nil {
+		nginxStatus = "\033[31m✗\033[0m"
+		nginxMsg = "\033[1;31mConfig Error\033[0m"
+	}
+
+	// Check configuration
+	configStatus := "\033[32m✓\033[0m"
+	configMsg := "\033[1;32mValid\033[0m"
+	errors, err := nginxService.GetConfigErrors()
+	if err != nil || len(errors) > 0 {
+		configStatus = "\033[31m✗\033[0m"
+		configMsg = fmt.Sprintf("\033[1;31m%d Errors\033[0m", len(errors))
+	}
+
+	// Get system metrics
+	sysMetrics, _ := nginxService.GetSystemMetrics()
+	diskMsg := "\033[1;32mOK\033[0m"
+	if sysMetrics != nil && sysMetrics.DiskUsage != "" {
+		diskMsg = fmt.Sprintf("\033[1;97m%s%% Used\033[0m", sysMetrics.DiskUsage)
+	}
+
+	memMsg := "\033[1;32mOK\033[0m"
+	if sysMetrics != nil {
+		memMsg = fmt.Sprintf("\033[1;97m%.1f%% Used\033[0m", sysMetrics.MemoryUsedPercent)
+	}
+
+	indicators := []string{
+		fmt.Sprintf("  %s NGINX Service   : %s", nginxStatus, nginxMsg),
+		fmt.Sprintf("  %s Configuration   : %s", configStatus, configMsg),
+		fmt.Sprintf("  \033[32m●\033[0m Disk Space      : %s", diskMsg),
+		fmt.Sprintf("  \033[32m●\033[0m Memory Usage    : %s", memMsg),
+	}
+
+	return title + strings.Join(indicators, "\n")
 }
 
 // RenderSiteDistributionChart renders a bar chart of site distribution
@@ -260,11 +420,45 @@ func (r *Renderer) RenderSiteDistributionChart(m *model.Model) string {
 	return styles.Panel.Render(lipgloss.JoinVertical(lipgloss.Left, title, bc.View()))
 }
 
-// RenderMetricsView renders the metrics view with charts using full width
 func (r *Renderer) RenderMetricsView(m *model.Model, width, height int) string {
+	// Collect real metrics
+	nginxService := nginx.New()
+	metrics, err := nginxService.GetMetrics()
+
+	// Update history with real data
+	if err == nil {
+		// Calculate network rate (MB/s) from change in total bytes
+		var networkRate float64
+		if m.LastNetworkIn > 0 && m.LastNetworkOut > 0 {
+			// Calculate change since last measurement
+			deltaIn := metrics.NetworkIn - m.LastNetworkIn
+			deltaOut := metrics.NetworkOut - m.LastNetworkOut
+			networkRate = (deltaIn + deltaOut) / 1024 // Convert to MB/s
+		}
+
+		// Store current values for next calculation
+		m.LastNetworkIn = metrics.NetworkIn
+		m.LastNetworkOut = metrics.NetworkOut
+
+		// Add new data point (will grow from 0 to 50 points)
+		if len(m.CPUHistory) < 50 {
+			// Still filling up - just append
+			m.CPUHistory = append(m.CPUHistory, metrics.CPU)
+			m.MemHistory = append(m.MemHistory, metrics.Memory)
+			m.NetHistory = append(m.NetHistory, networkRate)
+			m.RequestHistory = append(m.RequestHistory, metrics.RequestRate)
+		} else {
+			// Full - shift and add new data
+			m.CPUHistory = append(m.CPUHistory[1:], metrics.CPU)
+			m.MemHistory = append(m.MemHistory[1:], metrics.Memory)
+			m.NetHistory = append(m.NetHistory[1:], networkRate)
+			m.RequestHistory = append(m.RequestHistory[1:], metrics.RequestRate)
+		}
+	}
+
 	// Calculate chart dimensions to use full width
-	chartWidth := (width / 2) - 6   // Split width in half, account for padding/borders
-	chartHeight := (height / 2) - 4 // Split height in half, account for spacing
+	chartWidth := (width / 2) - 6
+	chartHeight := (height / 2) - 4
 
 	if chartWidth < 40 {
 		chartWidth = 40
@@ -273,10 +467,11 @@ func (r *Renderer) RenderMetricsView(m *model.Model, width, height int) string {
 		chartHeight = 8
 	}
 
-	cpuChart := r.RenderLineChart("CPU Usage", m.CPUHistory, styles.AccentPrimary, chartWidth, chartHeight)
-	memChart := r.RenderLineChart("Memory Usage", m.MemHistory, styles.AccentSecondary, chartWidth, chartHeight)
-	netChart := r.RenderLineChart("Network Traffic", m.NetHistory, styles.AccentSuccess, chartWidth, chartHeight)
-	reqChart := r.RenderLineChart("Request Rate", m.RequestHistory, styles.AccentWarning, chartWidth, chartHeight)
+	// Render charts with real data
+	cpuChart := r.RenderLineChart("CPU Usage (%)", m.CPUHistory, styles.AccentPrimary, chartWidth, chartHeight)
+	memChart := r.RenderLineChart("Memory Usage (%)", m.MemHistory, styles.AccentSecondary, chartWidth, chartHeight)
+	netChart := r.RenderLineChart("Network (MB/s)", m.NetHistory, styles.AccentSuccess, chartWidth, chartHeight)
+	reqChart := r.RenderLineChart("Request Rate (req/s)", m.RequestHistory, styles.AccentWarning, chartWidth, chartHeight)
 
 	row1 := lipgloss.JoinHorizontal(lipgloss.Top, cpuChart, "  ", memChart)
 	row2 := lipgloss.JoinHorizontal(lipgloss.Top, netChart, "  ", reqChart)

@@ -1,7 +1,6 @@
 package app
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -63,14 +62,42 @@ func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 		}
 
 	case model.TickMsg:
-		// Update metrics with new random data
-		if time.Since(m.LastUpdate) > time.Second {
-			m.CPUHistory = append(m.CPUHistory[1:], 20+rand.Float64()*30)
-			m.MemHistory = append(m.MemHistory[1:], 40+rand.Float64()*20)
-			m.NetHistory = append(m.NetHistory[1:], 10+rand.Float64()*40)
-			m.RequestHistory = append(m.RequestHistory[1:], 50+rand.Float64()*50)
-			m.LastUpdate = time.Now()
+		// Update REAL metrics when on Metrics tab
+		if m.ActiveTab == model.MetricsTab {
+			nginxService := nginx.New()
+			metrics, err := nginxService.GetMetrics()
+
+			if err == nil {
+				// Calculate network rate (MB/s) from change in total bytes
+				var networkRate float64
+				if m.LastNetworkIn > 0 && m.LastNetworkOut > 0 {
+					// Calculate change since last measurement
+					deltaIn := metrics.NetworkIn - m.LastNetworkIn
+					deltaOut := metrics.NetworkOut - m.LastNetworkOut
+					networkRate = (deltaIn + deltaOut) / 1024 // Convert to MB/s (measured per second)
+				}
+
+				// Store current values for next calculation
+				m.LastNetworkIn = metrics.NetworkIn
+				m.LastNetworkOut = metrics.NetworkOut
+
+				// Add new data point (will grow from 0 to 50 points)
+				if len(m.CPUHistory) < 50 {
+					// Still filling up - just append
+					m.CPUHistory = append(m.CPUHistory, metrics.CPU)
+					m.MemHistory = append(m.MemHistory, metrics.Memory)
+					m.NetHistory = append(m.NetHistory, networkRate)
+					m.RequestHistory = append(m.RequestHistory, metrics.RequestRate)
+				} else {
+					// Full - shift and add new data
+					m.CPUHistory = append(m.CPUHistory[1:], metrics.CPU)
+					m.MemHistory = append(m.MemHistory[1:], metrics.Memory)
+					m.NetHistory = append(m.NetHistory[1:], networkRate)
+					m.RequestHistory = append(m.RequestHistory[1:], metrics.RequestRate)
+				}
+			}
 		}
+		m.LastUpdate = time.Now()
 		cmds = append(cmds, tea.Tick(time.Second, func(t time.Time) tea.Msg {
 			return model.TickMsg(t)
 		}))
@@ -96,8 +123,21 @@ func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 // handleSitesTab handles key events in the sites tab
 func handleSitesTab(m model.Model, msg tea.KeyMsg) (model.Model, tea.Cmd) {
 	if key.Matches(msg, model.Keys.Enter) {
-		if len(m.Sites) > 0 {
-			// For stickers table, we track selection manually
+		if m.Cursor < len(m.Sites) {
+			// Check if Docker NGINX
+			if nginx.IsDockerAvailable() {
+				if _, err := nginx.DetectDockerNginx(); err == nil {
+					// Docker mode - show info message
+					return m, func() tea.Msg {
+						return model.StatusMsg{
+							Message: "Docker NGINX detected - use 'docker exec' commands to manage. Press 'l' for logs.",
+							IsError: false,
+						}
+					}
+				}
+			}
+			// Native mode - show menu
+			m.Selected = m.Cursor
 			m.MenuMode = true
 			m.Cursor = 0
 		}

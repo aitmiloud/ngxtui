@@ -1,7 +1,6 @@
 package app
 
 import (
-	"math/rand"
 	"time"
 
 	"github.com/charmbracelet/bubbles/progress"
@@ -43,18 +42,11 @@ func InitialModel() model.Model {
 	// Create stickers table
 	t := ui.CreateSitesTable(sites, 100, 15)
 
-	// Initialize metric history with random data
-	cpuHistory := make([]float64, 50)
-	memHistory := make([]float64, 50)
-	netHistory := make([]float64, 50)
-	requestHistory := make([]float64, 50)
-
-	for i := 0; i < 50; i++ {
-		cpuHistory[i] = 20 + rand.Float64()*30
-		memHistory[i] = 40 + rand.Float64()*20
-		netHistory[i] = 10 + rand.Float64()*40
-		requestHistory[i] = 50 + rand.Float64()*50
-	}
+	// Initialize metric history with EMPTY arrays - will fill with real data
+	cpuHistory := make([]float64, 0, 50)
+	memHistory := make([]float64, 0, 50)
+	netHistory := make([]float64, 0, 50)
+	requestHistory := make([]float64, 0, 50)
 
 	return model.Model{
 		Sites:          sites,
