@@ -2,17 +2,17 @@
 
 A modern, feature-rich terminal user interface for managing NGINX servers, built with [bubbletea](https://github.com/charmbracelet/bubbletea) and Go.
 
-![NGINX Terminal UI Manager](https://placeholder-for-screenshot.png)
+![NGINX Terminal UI Manager]
 
 ## Features
 
-- 📊 **Interactive Dashboard**: Multiple views including Sites, Logs, Stats, and Metrics
-- 🖥️ **Site Management**: Enable/disable sites, test configuration, and reload NGINX
-- 📈 **Real-time Metrics**: Monitor CPU, Memory, Network, and Request metrics with live charts
-- 📝 **Access Log Viewer**: Color-coded log viewing with status code highlighting
-- 📊 **Statistics**: Visual representation of site distribution and performance metrics
-- 🎨 **Professional UI**: Clean, modern dark theme with consistent styling
-- ⌨️ **Keyboard Driven**: Efficient keyboard shortcuts for all operations
+- **Interactive Dashboard**: Multiple views including Sites, Logs, Stats, and Metrics
+- **Site Management**: Enable/disable sites, test configuration, and reload NGINX
+- **Real-time Metrics**: Monitor CPU, Memory, Network, and Request metrics with live charts
+- **Access Log Viewer**: Color-coded log viewing with status code highlighting
+- **Statistics**: Visual representation of site distribution and performance metrics
+- **Professional UI**: Clean, modern dark theme with consistent styling
+- **Keyboard Driven**: Efficient keyboard shortcuts for all operations
 
 ## Installation
 
@@ -46,6 +46,7 @@ sudo ngxtui
 - `↑/↓` or `k/j`: Navigate items
 - `Enter`: Select/Execute action
 - `Esc`: Go back
+- `a`: Add site
 - `r`: Refresh sites
 - `q`: Quit application
 
@@ -56,6 +57,7 @@ sudo ngxtui
 - Enable/disable sites
 - Test configuration
 - Reload NGINX server
+- Add new site configuration
 
 ### Logs Tab
 - Real-time access log viewing
