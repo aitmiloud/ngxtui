@@ -2,7 +2,9 @@
 
 A modern, feature-rich terminal user interface for managing NGINX servers, built with [bubbletea](https://github.com/charmbracelet/bubbletea) and Go.
 
-![NGINX Terminal UI Manager]
+<p align="center">
+  <img src="assets/header.png" alt="NGX TUI Logo" width="500"/>
+</p>
 
 ## Features
 
