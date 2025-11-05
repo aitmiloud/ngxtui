@@ -151,14 +151,29 @@ func (r *Renderer) RenderStatusBadge(enabled bool) string {
 func (r *Renderer) RenderLogsView(m *model.Model) string {
 	title := fmt.Sprintf("\033[1;36m📋 REAL-TIME ACCESS LOGS\033[0m\n")
 
-	// Legend for status codes
-	legend := fmt.Sprintf("  \033[32m●\033[0m 2xx Success   \033[36m●\033[0m 3xx Redirect   \033[33m●\033[0m 4xx Client Error   \033[31m●\033[0m 5xx Server Error\n")
+	// Legend for status codes with icons
+	legend := fmt.Sprintf("  \033[32m✓\033[0m 2xx Success   \033[36m↻\033[0m 3xx Redirect   \033[33m⚠\033[0m 4xx Client Error   \033[31m✗\033[0m 5xx Server Error\n\n")
 
-	divider := "\033[90m" + strings.Repeat("─", 100) + "\033[0m\n"
+	// Column headers
+	headers := fmt.Sprintf("  \033[1;90m%-8s %-15s %-6s %-35s %-4s %-4s %-12s %-10s\033[0m\n",
+		"TIME", "IP", "METHOD", "PATH", "CODE", "SIZE", "CLIENT", "REFERER")
+
+	divider := "\033[90m" + strings.Repeat("─", 130) + "\033[0m\n"
+
+	// Calculate how many log entries can fit on screen
+	// Account for: title (1), legend (2), headers (1), divider (1), menu bar (3), padding (2)
+	headerLines := 10
+	availableLines := m.Height - headerLines
+	if availableLines < 10 {
+		availableLines = 10 // Minimum 10 lines
+	}
+	if availableLines > 100 {
+		availableLines = 100 // Maximum 100 lines to avoid performance issues
+	}
 
 	// Get real access logs from NGINX
 	nginxService := nginx.New()
-	logEntries, err := nginxService.GetAccessLogs(20) // Get last 20 entries
+	logEntries, err := nginxService.GetAccessLogs(availableLines)
 
 	var logs []string
 	if err != nil {
@@ -174,7 +189,7 @@ func (r *Renderer) RenderLogsView(m *model.Model) string {
 
 	content := strings.Join(logs, "\n")
 
-	return title + legend + divider + content
+	return title + legend + headers + divider + content
 }
 
 // RenderStatsView renders the statistics view with stunning modern design

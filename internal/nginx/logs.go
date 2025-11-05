@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -205,21 +206,27 @@ type LogStats struct {
 	AvgBytesPerRequest int64
 }
 
-// FormatLogEntry formats a log entry for display with colors
+// FormatLogEntry formats a log entry for display with colors and detailed information
 func FormatLogEntry(entry LogEntry) string {
 	// Color codes based on status
 	var statusColor string
+	var statusIcon string
 	switch entry.StatusClass {
 	case "2xx":
 		statusColor = "\033[32m" // Green
+		statusIcon = "✓"
 	case "3xx":
 		statusColor = "\033[36m" // Cyan
+		statusIcon = "↻"
 	case "4xx":
 		statusColor = "\033[33m" // Yellow
+		statusIcon = "⚠"
 	case "5xx":
 		statusColor = "\033[31m" // Red
+		statusIcon = "✗"
 	default:
 		statusColor = "\033[37m" // White
+		statusIcon = "●"
 	}
 
 	// Format timestamp
@@ -228,16 +235,61 @@ func FormatLogEntry(entry LogEntry) string {
 	// Format bytes
 	bytesStr := formatBytes(entry.BytesSent)
 
-	// Build formatted line
-	line := fmt.Sprintf("%s●\033[0m \033[90m%s\033[0m \033[37m%-15s\033[0m \033[36m%-6s\033[0m \033[97m%-40s\033[0m %s%3d\033[0m \033[90m%s\033[0m",
+	// Format referer (show domain or "-" if empty)
+	referer := "-"
+	if entry.Referer != "" && entry.Referer != "-" {
+		// Extract domain from referer URL
+		if strings.Contains(entry.Referer, "://") {
+			parts := strings.Split(entry.Referer, "://")
+			if len(parts) > 1 {
+				domain := strings.Split(parts[1], "/")[0]
+				referer = domain
+			}
+		} else {
+			referer = truncateString(entry.Referer, 20)
+		}
+	}
+
+	// Format user agent (extract browser/client type)
+	userAgent := "-"
+	if entry.UserAgent != "" && entry.UserAgent != "-" {
+		ua := entry.UserAgent
+		// Detect common browsers and tools
+		if strings.Contains(ua, "curl") {
+			userAgent = "curl"
+		} else if strings.Contains(ua, "wget") {
+			userAgent = "wget"
+		} else if strings.Contains(ua, "Postman") {
+			userAgent = "Postman"
+		} else if strings.Contains(ua, "Chrome") && !strings.Contains(ua, "Edg") {
+			userAgent = "Chrome"
+		} else if strings.Contains(ua, "Firefox") {
+			userAgent = "Firefox"
+		} else if strings.Contains(ua, "Safari") && !strings.Contains(ua, "Chrome") {
+			userAgent = "Safari"
+		} else if strings.Contains(ua, "Edg") {
+			userAgent = "Edge"
+		} else if strings.Contains(ua, "bot") || strings.Contains(ua, "Bot") {
+			userAgent = "Bot"
+		} else {
+			// Show first 15 chars of user agent
+			userAgent = truncateString(ua, 15)
+		}
+	}
+
+	// Build formatted line with more information
+	line := fmt.Sprintf("%s%s\033[0m \033[90m%s\033[0m \033[37m%-15s\033[0m \033[36m%-6s\033[0m \033[97m%-35s\033[0m %s%3d\033[0m \033[90m%4s\033[0m \033[35m%-12s\033[0m \033[34m%-10s\033[0m",
 		statusColor,
+		statusIcon,
 		timeStr,
 		entry.IP,
 		entry.Method,
-		truncateString(entry.Path, 40),
+		truncateString(entry.Path, 35),
 		statusColor,
 		entry.StatusCode,
 		bytesStr,
+		truncateString(userAgent, 12),
+		truncateString(referer, 10),
 	)
 
 	return line

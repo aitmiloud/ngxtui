@@ -12,6 +12,9 @@ import (
 func GetDockerNginxSites(containerID string) ([]model.Site, error) {
 	var sites []model.Site
 
+	// Get Docker container uptime
+	containerUptime := getDockerContainerUptime(containerID)
+
 	// Get nginx configuration from container
 	cmd := exec.Command("docker", "exec", containerID, "nginx", "-T")
 	output, err := cmd.Output()
@@ -30,7 +33,7 @@ func GetDockerNginxSites(containerID string) ([]model.Site, error) {
 			Enabled: true, // All servers in running config are enabled
 			Port:    "80",
 			SSL:     false,
-			Uptime:  "Running",
+			Uptime:  containerUptime,
 		}
 
 		// Extract server_name
@@ -70,7 +73,7 @@ func GetDockerNginxSites(containerID string) ([]model.Site, error) {
 			Enabled: true,
 			Port:    "80",
 			SSL:     false,
-			Uptime:  "Running",
+			Uptime:  containerUptime,
 		})
 	}
 
@@ -132,4 +135,51 @@ func extractDirective(block, directive string) string {
 		}
 	}
 	return ""
+}
+
+// getDockerContainerUptime gets the uptime of a Docker container
+func getDockerContainerUptime(containerID string) string {
+	// Get container status with uptime info
+	cmd := exec.Command("docker", "inspect", "--format={{.State.Status}} {{.State.StartedAt}}", containerID)
+	output, err := cmd.Output()
+	if err != nil {
+		return "N/A"
+	}
+
+	// Parse output: "running 2024-11-05T12:00:00.000000000Z"
+	parts := strings.Fields(string(output))
+	if len(parts) < 2 || parts[0] != "running" {
+		return "N/A"
+	}
+	
+	// Use docker ps to get formatted uptime
+	cmd = exec.Command("docker", "ps", "--filter", fmt.Sprintf("id=%s", containerID), "--format", "{{.Status}}")
+	output, err = cmd.Output()
+	if err != nil {
+		return "N/A"
+	}
+
+	status := strings.TrimSpace(string(output))
+	// Status format: "Up 2 hours" or "Up 3 days"
+	if strings.HasPrefix(status, "Up ") {
+		// Extract the uptime part: "Up 2 hours" -> "2h"
+		uptime := strings.TrimPrefix(status, "Up ")
+		uptime = strings.TrimSpace(uptime)
+		
+		// Convert to shorter format
+		uptime = strings.Replace(uptime, " seconds", "s", 1)
+		uptime = strings.Replace(uptime, " second", "s", 1)
+		uptime = strings.Replace(uptime, " minutes", "m", 1)
+		uptime = strings.Replace(uptime, " minute", "m", 1)
+		uptime = strings.Replace(uptime, " hours", "h", 1)
+		uptime = strings.Replace(uptime, " hour", "h", 1)
+		uptime = strings.Replace(uptime, " days", "d", 1)
+		uptime = strings.Replace(uptime, " day", "d", 1)
+		uptime = strings.Replace(uptime, " weeks", "w", 1)
+		uptime = strings.Replace(uptime, " week", "w", 1)
+		
+		return uptime
+	}
+
+	return "N/A"
 }
