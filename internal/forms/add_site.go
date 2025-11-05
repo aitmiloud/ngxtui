@@ -9,6 +9,9 @@ import (
 
 // SiteConfig holds all configuration for a new NGINX site
 type SiteConfig struct {
+	// Template Selection
+	SelectedTemplate string
+	
 	// Basic Configuration
 	ServerName   string
 	Port         string
@@ -57,7 +60,54 @@ func NewAddSiteForm() (*huh.Form, *SiteConfig) {
 		EnableGzip:        true,
 	}
 
+	// Build template options with descriptions
+	templates := GetSiteTemplates()
+	templateOptions := make([]huh.Option[string], len(templates))
+	for i, t := range templates {
+		templateOptions[i] = huh.NewOption(
+			fmt.Sprintf("%s - %s", t.Name, t.Description),
+			t.Name,
+		)
+	}
+
 	form := huh.NewForm(
+		// Page 0: Template Selection
+		huh.NewGroup(
+			huh.NewSelect[string]().
+				Title("Choose a Template").
+				Description("Select a pre-configured template or start from scratch").
+				Options(templateOptions...).
+				Value(&config.SelectedTemplate).
+				Validate(func(s string) error {
+					if s == "" {
+						return fmt.Errorf("please select a template")
+					}
+					// Apply template configuration
+					if template := GetTemplateByName(s); template != nil {
+						// Copy template config to current config
+						config.ServerName = template.Config.ServerName
+						config.Port = template.Config.Port
+						config.RootPath = template.Config.RootPath
+						config.IndexFiles = template.Config.IndexFiles
+						config.EnableSSL = template.Config.EnableSSL
+						config.SSLCertPath = template.Config.SSLCertPath
+						config.SSLKeyPath = template.Config.SSLKeyPath
+						config.ForceHTTPS = template.Config.ForceHTTPS
+						config.IsProxy = template.Config.IsProxy
+						config.ProxyPass = template.Config.ProxyPass
+						config.ProxyHeaders = template.Config.ProxyHeaders
+						config.EnableGzip = template.Config.EnableGzip
+						config.ClientMaxBodySize = template.Config.ClientMaxBodySize
+						config.AccessLog = template.Config.AccessLog
+						config.ErrorLog = template.Config.ErrorLog
+						config.EnablePHP = template.Config.EnablePHP
+						config.PHPSocket = template.Config.PHPSocket
+						config.CustomConfig = template.Config.CustomConfig
+					}
+					return nil
+				}),
+		).Title("📋 Template Selection").Description("Choose a starting point for your site configuration"),
+
 		// Page 1: Basic Configuration
 		huh.NewGroup(
 			huh.NewInput().

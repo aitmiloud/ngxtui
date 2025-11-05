@@ -25,3 +25,6 @@ Thumbs.db
 
 # Go workspace file
 go.work
+
+# Documentation
+docs/
