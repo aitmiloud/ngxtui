@@ -662,12 +662,25 @@ func (r *Renderer) RenderHelp(m *model.Model, width int) string {
 		styles.HelpDesc.Render("select"),
 	)
 
-	actions := lipgloss.JoinHorizontal(
-		lipgloss.Left,
+	// Build actions - add "add site" option when on Sites tab
+	actionParts := []string{
 		styles.HelpKey.Render("r"),
 		styles.HelpSeparator.Render(" "),
 		styles.HelpDesc.Render("refresh"),
 		styles.HelpSeparator.Render("  │  "),
+	}
+	
+	// Add "add site" option only on Sites tab
+	if m.ActiveTab == model.SitesTab {
+		actionParts = append(actionParts,
+			styles.HelpKey.Render("a"),
+			styles.HelpSeparator.Render(" "),
+			styles.HelpDesc.Render("add site"),
+			styles.HelpSeparator.Render("  │  "),
+		)
+	}
+	
+	actionParts = append(actionParts,
 		styles.HelpKey.Render("esc"),
 		styles.HelpSeparator.Render(" "),
 		styles.HelpDesc.Render("back"),
@@ -676,6 +689,8 @@ func (r *Renderer) RenderHelp(m *model.Model, width int) string {
 		styles.HelpSeparator.Render(" "),
 		styles.HelpDesc.Render("quit"),
 	)
+	
+	actions := lipgloss.JoinHorizontal(lipgloss.Left, actionParts...)
 
 	helpText := lipgloss.JoinHorizontal(
 		lipgloss.Left,

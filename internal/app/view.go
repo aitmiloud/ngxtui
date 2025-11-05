@@ -3,6 +3,7 @@ package app
 import (
 	"strings"
 
+	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/aitmiloud/ngxtui/internal/model"
@@ -22,6 +23,35 @@ func max(a, b int) int {
 func View(m model.Model) string {
 	if m.Quitting {
 		return styles.SuccessText.Render("Thanks for using NgxTUI! 👋\n")
+	}
+
+	// If showing add site form, render it
+	if m.ShowAddSiteForm {
+		if form, ok := m.AddSiteForm.(*huh.Form); ok {
+			formView := lipgloss.NewStyle().
+				Padding(2, 4).
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(lipgloss.Color("63")).
+				Render(form.View())
+			
+			title := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("212")).
+				Padding(1, 0).
+				Render("🌐 Add New NGINX Site")
+			
+			hint := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("241")).
+				Italic(true).
+				Render("Press ESC to cancel")
+			
+			return lipgloss.JoinVertical(
+				lipgloss.Left,
+				title,
+				formView,
+				hint,
+			)
+		}
 	}
 
 	renderer := ui.New()

@@ -8,11 +8,39 @@ import (
 
 // DetectDockerNginx checks if NGINX is running in Docker and returns container ID
 func DetectDockerNginx() (string, error) {
-	// Check if there are nginx processes
-	cmd := exec.Command("sh", "-c", "ps aux | grep 'nginx: master process' | grep -v grep | head -1")
+	// First, try to find NGINX containers directly using docker ps
+	cmd := exec.Command("docker", "ps", "--filter", "ancestor=nginx", "--format", "{{.ID}}")
 	output, err := cmd.Output()
+	if err == nil && len(output) > 0 {
+		containerID := strings.TrimSpace(string(output))
+		// If multiple containers, take the first one
+		if strings.Contains(containerID, "\n") {
+			containerID = strings.Split(containerID, "\n")[0]
+		}
+		if containerID != "" {
+			return containerID, nil
+		}
+	}
+
+	// Also try searching by name pattern
+	cmd = exec.Command("docker", "ps", "--filter", "name=nginx", "--format", "{{.ID}}")
+	output, err = cmd.Output()
+	if err == nil && len(output) > 0 {
+		containerID := strings.TrimSpace(string(output))
+		// If multiple containers, take the first one
+		if strings.Contains(containerID, "\n") {
+			containerID = strings.Split(containerID, "\n")[0]
+		}
+		if containerID != "" {
+			return containerID, nil
+		}
+	}
+
+	// Fallback: Check if there are nginx processes on host
+	cmd = exec.Command("sh", "-c", "ps aux | grep 'nginx: master process' | grep -v grep | head -1")
+	output, err = cmd.Output()
 	if err != nil || len(output) == 0 {
-		return "", fmt.Errorf("no nginx process found")
+		return "", fmt.Errorf("no nginx container or process found")
 	}
 
 	// Get the PID of nginx master process

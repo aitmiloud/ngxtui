@@ -1,12 +1,15 @@
 package app
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/huh"
 
+	"github.com/aitmiloud/ngxtui/internal/forms"
 	"github.com/aitmiloud/ngxtui/internal/model"
 	"github.com/aitmiloud/ngxtui/internal/nginx"
 	"github.com/aitmiloud/ngxtui/internal/ui"
@@ -16,6 +19,11 @@ import (
 func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 	var cmd tea.Cmd
 	var cmds []tea.Cmd
+
+	// If form is showing, handle form input first (for all message types)
+	if m.ShowAddSiteForm {
+		return handleAddSiteForm(&m, msg)
+	}
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -112,6 +120,22 @@ func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 		m.ShowStatus = false
 		m.StatusMsg = ""
 
+	case model.SiteCreatedMsg:
+		// Close the form
+		m.ShowAddSiteForm = false
+		m.AddSiteForm = nil
+		m.AddSiteConfig = nil
+		
+		// Update sites list
+		m.Sites = msg.Sites
+		m.Table = ui.CreateSitesTable(msg.Sites, 100, 15)
+		
+		// Show success message
+		m.StatusMsg = "Site created successfully: " + msg.SiteName
+		m.IsError = false
+		m.ShowStatus = true
+		cmds = append(cmds, clearStatusAfter(3*time.Second))
+
 	case spinner.TickMsg:
 		m.Spinner, cmd = m.Spinner.Update(msg)
 		cmds = append(cmds, cmd)
@@ -122,7 +146,14 @@ func Update(m model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
 
 // handleSitesTab handles key events in the sites tab
 func handleSitesTab(m model.Model, msg tea.KeyMsg) (model.Model, tea.Cmd) {
-	if key.Matches(msg, model.Keys.Enter) {
+	if key.Matches(msg, model.Keys.AddSite) {
+		// Show add site form
+		form, config := forms.NewAddSiteForm()
+		m.AddSiteForm = form
+		m.AddSiteConfig = config
+		m.ShowAddSiteForm = true
+		return m, form.Init()
+	} else if key.Matches(msg, model.Keys.Enter) {
 		if m.Cursor < len(m.Sites) {
 			// Check if Docker NGINX
 			if nginx.IsDockerAvailable() {
@@ -265,6 +296,114 @@ func executeAction(m *model.Model) tea.Cmd {
 		return model.StatusMsg{
 			Message: message,
 			IsError: false,
+		}
+	}
+}
+
+// handleAddSiteForm handles form interactions
+func handleAddSiteForm(m *model.Model, msg tea.Msg) (model.Model, tea.Cmd) {
+	// Handle ESC to cancel form (check if it's a KeyMsg first)
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if key.Matches(keyMsg, model.Keys.Back) {
+			m.ShowAddSiteForm = false
+			m.AddSiteForm = nil
+			m.AddSiteConfig = nil
+			return *m, nil
+		}
+	}
+
+	// Update the form
+	form, ok := m.AddSiteForm.(*huh.Form)
+	if !ok {
+		return *m, nil
+	}
+
+	f, cmd := form.Update(msg)
+	if f, ok := f.(*huh.Form); ok {
+		m.AddSiteForm = f
+
+		// Check if form is complete
+		if f.State == huh.StateCompleted {
+			// Form completed - create the site
+			m.ShowAddSiteForm = false
+			return *m, createSiteFromForm(m)
+		}
+		
+		// Check if form was aborted
+		if f.State == huh.StateAborted {
+			m.ShowAddSiteForm = false
+			m.AddSiteForm = nil
+			m.AddSiteConfig = nil
+			return *m, func() tea.Msg {
+				return model.StatusMsg{
+					Message: "Site creation cancelled",
+					IsError: false,
+				}
+			}
+		}
+	}
+
+	return *m, cmd
+}
+
+// createSiteFromForm creates a new NGINX site from the form data
+func createSiteFromForm(m *model.Model) tea.Cmd {
+	return func() tea.Msg {
+		// Get config
+		config, ok := m.AddSiteConfig.(*forms.SiteConfig)
+		if !ok {
+			return model.StatusMsg{
+				Message: "DEBUG: Failed to get form configuration (type assertion failed)",
+				IsError: true,
+			}
+		}
+
+		// Validate server name
+		if config.ServerName == "" {
+			return model.StatusMsg{
+				Message: "DEBUG: Server name is empty",
+				IsError: true,
+			}
+		}
+		
+		// Check if user confirmed
+		if !config.Confirmed {
+			return model.StatusMsg{
+				Message: "DEBUG: User did not confirm (Confirmed=" + fmt.Sprint(config.Confirmed) + ")",
+				IsError: false,
+			}
+		}
+
+		// Generate NGINX configuration
+		nginxConfig := config.GenerateNginxConfig()
+		filename := config.GetFileName() + ".conf"
+
+		// Debug: Show what we're creating
+		_ = nginxConfig // Keep for debugging
+		_ = filename    // Keep for debugging
+
+		// Create the site
+		nginxService := nginx.New()
+		if err := nginxService.CreateSiteConfig(filename, nginxConfig); err != nil {
+			return model.StatusMsg{
+				Message: "Failed to create site '" + filename + "': " + err.Error(),
+				IsError: true,
+			}
+		}
+
+		// Refresh sites list
+		sites, err := nginxService.ListSites()
+		if err != nil {
+			return model.StatusMsg{
+				Message: "Site created but failed to refresh list: " + err.Error(),
+				IsError: true,
+			}
+		}
+
+		// Return success message with refreshed sites
+		return model.SiteCreatedMsg{
+			SiteName: config.ServerName,
+			Sites:    sites,
 		}
 	}
 }

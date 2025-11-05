@@ -41,6 +41,12 @@ type TickMsg time.Time
 // ClearStatusMsg is sent to clear the status message
 type ClearStatusMsg struct{}
 
+// SiteCreatedMsg is sent when a new site is successfully created
+type SiteCreatedMsg struct {
+	SiteName string
+	Sites    []Site
+}
+
 // Model represents the application state
 type Model struct {
 	Sites          []Site
@@ -68,6 +74,11 @@ type Model struct {
 	MetricsHistory interface{} // Will store *nginx.MetricsHistory
 	LastNetworkIn  float64     // Track last network in for rate calculation
 	LastNetworkOut float64     // Track last network out for rate calculation
+	
+	// Form state
+	ShowAddSiteForm bool
+	AddSiteForm     interface{} // Will store *huh.Form
+	AddSiteConfig   interface{} // Will store *forms.SiteConfig
 }
 
 // KeyMap defines the keybindings for the application
@@ -81,6 +92,7 @@ type KeyMap struct {
 	Quit    key.Binding
 	Tab     key.Binding
 	Refresh key.Binding
+	AddSite key.Binding
 }
 
 // Keys is the default keymap
@@ -121,17 +133,21 @@ var Keys = KeyMap{
 		key.WithKeys("r"),
 		key.WithHelp("r", "refresh"),
 	),
+	AddSite: key.NewBinding(
+		key.WithKeys("a"),
+		key.WithHelp("a", "add site"),
+	),
 }
 
 // ShortHelp returns a short help text
 func (k KeyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Enter, k.Back, k.Refresh, k.Quit}
+	return []key.Binding{k.Up, k.Down, k.Left, k.Right, k.Enter, k.Back, k.Refresh, k.AddSite, k.Quit}
 }
 
 // FullHelp returns the full help text
 func (k KeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{k.Up, k.Down, k.Left, k.Right},
-		{k.Enter, k.Back, k.Refresh, k.Quit},
+		{k.Enter, k.Back, k.Refresh, k.AddSite, k.Quit},
 	}
 }
