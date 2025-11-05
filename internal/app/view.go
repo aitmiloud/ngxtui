@@ -36,24 +36,8 @@ func View(m model.Model) string {
 		height = 30
 	}
 
-	// Header with version and status (fixed height: 3 lines)
-	headerLeft := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(styles.TextPrimary).
-		Render("🚀 NGINX TUI")
-
-	headerRight := lipgloss.NewStyle().
-		Foreground(styles.TextMuted).
-		Render("v1.0.0")
-
-	headerContent := lipgloss.JoinHorizontal(
-		lipgloss.Top,
-		headerLeft,
-		strings.Repeat(" ", max(0, width-lipgloss.Width(headerLeft)-lipgloss.Width(headerRight)-6)),
-		headerRight,
-	)
-
-	header := styles.Header.Width(width - 2).Render(headerContent)
+	// Creative header (fixed height: 10 lines)
+	header := renderer.RenderCreativeHeader(width)
 
 	// Tabs (fixed height: 2 lines)
 	tabs := renderer.RenderTabs(&m)
@@ -69,8 +53,8 @@ func View(m model.Model) string {
 	}
 
 	// Calculate available height for content
-	// Total: header(3) + tabs(2) + status(0-1) + help(2) = 7-8 lines
-	contentHeight := height - 7 - statusHeight
+	// Total: header(10) + tabs(2) + status(0-1) + help(2) = 14-15 lines
+	contentHeight := height - 14 - statusHeight
 	if contentHeight < 10 {
 		contentHeight = 10
 	}
@@ -82,7 +66,7 @@ func View(m model.Model) string {
 	} else {
 		switch m.ActiveTab {
 		case model.SitesTab:
-			content = renderer.RenderSitesTable(&m)
+			content = renderer.RenderSitesTable(&m, width, contentHeight)
 		case model.LogsTab:
 			content = renderer.RenderLogsView(&m)
 		case model.StatsTab:

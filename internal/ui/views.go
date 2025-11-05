@@ -22,6 +22,22 @@ func New() *Renderer {
 	return &Renderer{}
 }
 
+// RenderCreativeHeader renders a beautiful, unified header for NgxTUI
+func (r *Renderer) RenderCreativeHeader(width int) string {
+	// Compact ASCII art style NgxTUI logo with gradient effect and top margin
+	lineEmpty1 := "  \033[1;38;5;51m\033[0m"
+	lineEmpty2 := "  \033[1;38;5;51m\033[0m"
+	line1 := "  \033[1;38;5;51m███╗   ██╗ ██████╗ ██╗  ██╗\033[38;5;48m████████╗\033[38;5;46m██╗   ██╗██╗\033[0m"
+	line2 := "  \033[1;38;5;51m████╗  ██║██╔════╝ ╚██╗██╔╝\033[38;5;48m╚══██╔══╝\033[38;5;46m██║   ██║██║\033[0m"
+	line3 := "  \033[1;38;5;51m██╔██╗ ██║██║  ███╗ ╚███╔╝ \033[38;5;48m   ██║   \033[38;5;46m██║   ██║██║\033[0m  \033[2;37mNGINX Management Terminal UI\033[0m \033[2;90mv1.0.0\033[0m"
+	line4 := "  \033[1;38;5;51m██║╚██╗██║██║   ██║ ██╔██╗ \033[38;5;48m   ██║   \033[38;5;46m██║   ██║██║\033[0m"
+	line5 := "  \033[1;38;5;51m██║ ╚████║╚██████╔╝██╔╝ ██╗\033[38;5;48m   ██║   \033[38;5;46m╚██████╔╝██║\033[0m"
+	line6 := "  \033[1;38;5;51m╚═╝  ╚═══╝ ╚═════╝ ╚═╝  ╚═╝\033[38;5;48m   ╚═╝   \033[38;5;46m ╚═════╝ ╚═╝\033[0m"
+	lineEmpty3 := "  \033[1;38;5;51m\033[0m"
+
+	return "\n" + strings.Join([]string{lineEmpty1, lineEmpty2, line1, line2, line3, line4, line5, line6, lineEmpty3}, "\n")
+}
+
 // RenderTabs renders the tab bar with icons
 func (r *Renderer) RenderTabs(m *model.Model) string {
 	tabs := []struct {
@@ -63,9 +79,9 @@ func (r *Renderer) RenderTabs(m *model.Model) string {
 }
 
 // RenderSitesTable renders the sites table view
-func (r *Renderer) RenderSitesTable(m *model.Model) string {
-	// Use the stickers table renderer with default dimensions
-	return r.RenderSitesTableStickers(m, 100, 20)
+func (r *Renderer) RenderSitesTable(m *model.Model, width, height int) string {
+	// Use the stickers table renderer with actual terminal dimensions
+	return r.RenderSitesTableStickers(m, width, height)
 }
 
 // RenderActionMenu renders the action menu for a selected site
@@ -181,11 +197,6 @@ func (r *Renderer) RenderStatsView(m *model.Model, width int) string {
 		percentage = float64(enabledSites) / float64(totalSites) * 100
 	}
 
-	// Header with gradient-style title using ANSI codes
-	header := fmt.Sprintf("\033[1;36m╔═══════════════════════════════════════════════════════════════════════════════╗\033[0m\n")
-	header += fmt.Sprintf("\033[1;36m║\033[0m  \033[1;97m📊 NGINX STATISTICS DASHBOARD\033[0m                                              \033[1;36m║\033[0m\n")
-	header += fmt.Sprintf("\033[1;36m╚═══════════════════════════════════════════════════════════════════════════════╝\033[0m\n")
-
 	// Stunning metric cards in a row with box drawing
 	card1 := r.RenderStunningMetricCard("🌐", "TOTAL SITES", fmt.Sprintf("%d", totalSites), "Configured", styles.AccentPrimary)
 	card2 := r.RenderStunningMetricCard("✓", "ACTIVE", fmt.Sprintf("%d", enabledSites), fmt.Sprintf("%.0f%% Online", percentage), styles.AccentSuccess)
@@ -204,8 +215,6 @@ func (r *Renderer) RenderStatsView(m *model.Model, width int) string {
 	healthSection := r.RenderHealthIndicators()
 
 	return lipgloss.JoinVertical(lipgloss.Left,
-		header,
-		"",
 		cardsRow,
 		"",
 		"",

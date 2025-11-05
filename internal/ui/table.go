@@ -10,29 +10,31 @@ import (
 
 // CreateSitesTable creates a new stickers table for sites
 func CreateSitesTable(sites []model.Site, width, height int) *table.Table {
-	// Create table headers
+	// Create table headers with icons
 	headers := []string{
-		"Site Name",
-		"Status",
-		"Port",
-		"SSL",
-		"Uptime",
+		"🌐 Site Name",
+		"⚡ Status",
+		"🔌 Port",
+		"🔒 SSL",
+		"⏱️  Uptime",
 	}
 
 	// Create table
 	t := table.NewTable(0, 0, headers)
 
-	// Prepare rows as [][]any
+	// Prepare rows as [][]any - keep it simple without ANSI codes
 	var rows [][]any
 	for _, site := range sites {
+		// Status indicator
 		status := "○ Inactive"
 		if site.Enabled {
 			status = "● Active"
 		}
 
-		ssl := "No"
+		// SSL indicator
+		ssl := "✗ No"
 		if site.SSL {
-			ssl = "Yes"
+			ssl = "✓ Yes"
 		}
 
 		row := []any{
@@ -50,20 +52,21 @@ func CreateSitesTable(sites []model.Site, width, height int) *table.Table {
 		t.MustAddRows(rows)
 	}
 
-	// Set table dimensions
+	// Set table dimensions to be responsive
 	if width > 0 {
-		t.SetWidth(width - 4) // Account for borders
+		t.SetWidth(width - 8) // Account for panel padding and borders
 	}
 	if height > 0 {
-		t.SetHeight(height)
+		t.SetHeight(height - 4) // Account for hint text
 	}
 
-	// Apply modern styling
+	// Apply enhanced styling
 	t.SetStyles(map[table.StyleKey]lipgloss.Style{
 		table.StyleKeyHeader: lipgloss.NewStyle().
 			Bold(true).
 			Foreground(styles.AccentPrimary).
-			Padding(0, 1),
+			Background(lipgloss.Color("#1E293B")).
+			Padding(0, 2),
 	})
 
 	return t
@@ -79,15 +82,13 @@ func (r *Renderer) RenderSitesTableStickers(m *model.Model, width, height int) s
 			Render(lipgloss.Place(width-8, height-4, lipgloss.Center, lipgloss.Center, emptyMsg))
 	}
 
-	// Create or update table
+	// Create table
 	t := CreateSitesTable(m.Sites, width, height)
 
-	// Set cursor position by moving down m.Selected times
+	// Set cursor position
 	for i := 0; i < m.Selected && i < len(m.Sites); i++ {
 		t.CursorDown()
 	}
-
-	title := styles.PanelTitle.Render("🌐 NGINX Sites")
 
 	tableView := t.Render()
 
@@ -98,8 +99,6 @@ func (r *Renderer) RenderSitesTableStickers(m *model.Model, width, height int) s
 
 	content := lipgloss.JoinVertical(
 		lipgloss.Left,
-		title,
-		"",
 		tableView,
 		"",
 		hint,
