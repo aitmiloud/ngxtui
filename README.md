@@ -1,28 +1,40 @@
 # NGINX Terminal UI Manager (NgxTUI)
 
-A modern, feature-rich terminal user interface for managing NGINX servers, built with [bubbletea](https://github.com/charmbracelet/bubbletea) and Go.
+A modern, feature-rich terminal UI for managing NGINX servers, built with [Bubble Tea](https://github.com/charmbracelet/bubbletea) and Go.
 
 <p align="center">
   <img src="assets/header.png" alt="NGX TUI Logo" width="500"/>
 </p>
 
+<p align="center">
+  <a href="https://github.com/aitmiloud/ngxtui/actions"><img src="https://img.shields.io/github/actions/workflow/status/aitmiloud/ngxtui/ci.yml?branch=main" alt="Build Status"></a>
+  <a href="https://github.com/aitmiloud/ngxtui/releases"><img src="https://img.shields.io/github/v/release/aitmiloud/ngxtui" alt="Latest Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT"></a>
+  <a href="https://go.dev/"><img src="https://img.shields.io/badge/Go-%3E%3D%201.24-00ADD8" alt="Go Version"></a>
+</p>
+
 ## Features
 
-- **Interactive Dashboard**: Multiple views including Sites, Logs, Stats, and Metrics
-- **Site Management**: Enable/disable sites, test configuration, and reload NGINX
-- **Real-time Metrics**: Monitor CPU, Memory, Network, and Request metrics with live charts
-- **Access Log Viewer**: Color-coded log viewing with status code highlighting
-- **Statistics**: Visual representation of site distribution and performance metrics
-- **Professional UI**: Clean, modern dark theme with consistent styling
-- **Keyboard Driven**: Efficient keyboard shortcuts for all operations
+- Interactive, keyboard-driven dashboard: Sites, Logs, Stats, and Metrics tabs
+- Site management: enable/disable, config test, graceful reload, quick add
+- Powerful template system for "Add Site" with 11 pre-configured templates:
+  - Static, SPA, Node.js, WordPress, Laravel, Django, Docker/Proxy, WebSocket, Domain Redirect, API Gateway, Blank
+- Auto-populated forms, validation, and quick-start guides per template
+- NGINX config generation with SSL/TLS, proxy, PHP-FPM, and custom block support
+- Real-time metrics: CPU, memory, network, request throughput with live charts
+- Access log viewer: color-coded by status code, auto-scroll, quick filtering
+- Statistics: site distribution and performance summaries
+- Modular architecture: testable, production-ready, easy to extend
+- Modern TUI styling with a clean dark theme
 
-## Installation
+## Installation & Build
 
-```bash
-go install github.com/aitmiloud/ngxtui@latest
-```
+Prerequisites:
+- Go 1.24 or higher
+- NGINX installed and running
+- A Unix-like OS (Linux recommended)
 
-Or build from source:
+Build from source:
 
 ```bash
 git clone https://github.com/aitmiloud/ngxtui.git
@@ -34,13 +46,17 @@ go build -o bin/ngxtui ./cmd/ngxtui
 
 ## Usage
 
-Run the application:
+Run the application (requires elevated privileges to manage NGINX configs):
 
 ```bash
-sudo ngxtui
+sudo ./bin/ngxtui        # after building locally
+# or
+sudo make run            # build and run in one step
 ```
 
-> Note: Sudo privileges are required for managing NGINX configuration files.
+Notes:
+- Sudo is required to read/write NGINX configuration files and reload the service.
+- NgxTUI does not modify your configs without explicit actions from you.
 
 ### Keyboard Controls
 
@@ -78,6 +94,15 @@ sudo ngxtui
 - Memory utilization
 - Network traffic
 - Request rate trends
+
+## Template System
+
+NgxTUI ships with a comprehensive template system for quick, safe site provisioning.
+
+- 11 ready-to-use templates: Static, SPA, Node.js, WordPress, Laravel, Django, Docker/Proxy, WebSocket, Domain Redirect, API Gateway, Blank
+- Auto-populates form fields and generates production-grade NGINX configs
+- Includes SSL/TLS, proxying, PHP-FPM, and custom configuration blocks
+- Built-in validation, previews, and quick-start guidance
 
 ## Requirements
 
@@ -126,9 +151,27 @@ make fmt            # Format code
 - [lipgloss](https://github.com/charmbracelet/lipgloss): Style definitions
 - [bubbles](https://github.com/charmbracelet/bubbles): UI components
 
+## Troubleshooting
+
+- Permission denied / operation not permitted
+  - Run via `sudo` as shown above.
+  - Ensure your user is allowed to reload NGINX (e.g., via `sudoers`).
+
+- NGINX reload fails
+  - Check syntax with `sudo nginx -t`.
+  - Inspect error logs (e.g., `/var/log/nginx/error.log`).
+
+- No sites listed / paths differ
+  - Verify your NGINX `sites-available` and `sites-enabled` directories.
+  - Customize paths in your system or adjust service configuration as needed.
+
+- Colors or graphics look wrong
+  - Use a terminal with true-color support.
+  - Ensure `TERM` is set appropriately (e.g., `xterm-256color`).
+
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
